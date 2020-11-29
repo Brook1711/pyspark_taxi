@@ -446,3 +446,35 @@ plt.savefig("./plot/map_passengaer_count_pick_minus_drop.png")
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | ![map_passengaer_count_pick_minus_drop_daytime6_9](taxi.assets/map_passengaer_count_pick_minus_drop_daytime6_9.png) | ![map_passengaer_count_pick_minus_drop_nighttime15_18](taxi.assets/map_passengaer_count_pick_minus_drop_nighttime15_18.png) |
 
+![image-20201129073527713](taxi.assets/image-20201129073527713.png)
+
+![image-20201129073612781](taxi.assets/image-20201129073612781.png)
+
+### 2.4 保存数据到hbase
+
+要保存的数据有：
+
+trip_data_group_by_PUL
+
+trip_data_group_by_DOL
+
+trip_data_group_by_LOC_PminusD
+
+daily_taxi_trips
+
+one_day_hourly_taxi_trips
+
+分别存为csv文件：
+
+![image-20201129153850300](taxi.assets/image-20201129153850300.png)
+
+```python
+trip_data_group_by_PUL.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/trip_data_group_by_PUL")
+trip_data_group_by_DOL.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/trip_data_group_by_DOL")
+trip_data_group_by_LOC_PminusD.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/trip_data_group_by_LOC_PminusD")
+daily_taxi_trips.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/daily_taxi_trips")
+one_day_hourly_taxi_trips.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/one_day_hourly_taxi_trips")
+```
+
+将这些文件存入ubuntu系统的hdfs中
+
