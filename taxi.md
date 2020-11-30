@@ -491,6 +491,12 @@ plt.savefig("./plot/map_tip_amount_drop.png")
 
 #### google earth
 
+![image-20201130122104801](taxi.assets/image-20201130122104801.png)
+
+![image-20201130122354862](taxi.assets/image-20201130122354862.png)
+
+![image-20201130122503322](taxi.assets/image-20201130122503322.png)
+
 ### 2.4 保存数据到hbase
 
 要保存的数据有：
