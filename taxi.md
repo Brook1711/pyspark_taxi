@@ -519,3 +519,52 @@ one_day_hourly_taxi_trips.coalesce(1).write.format('com.databricks.spark.csv').o
 
 将这些文件存入ubuntu系统的hdfs中
 
+![2020-11-29 15-57-19 的屏幕截图](../../图片/2020-11-29 15-57-19 的屏幕截图.png)
+
+![2020-11-29 15-57-19 的屏幕截图](../../图片/2020-11-29 16-15-24 的屏幕截图.png)
+
+再从hdfs中导入hbase中
+
+首先新建容器'taxi',在/home/brook1711/hbase-1.4.13/bin目录下
+
+```shell
+./hbase shell
+```
+
+打开hbase shell
+
+利用create命令新建表
+
+```shell
+create 'daily_taxi_trips','cf'
+create 'one_day_hourly_taxi_trips','cf'
+create 'trip_data_group_by_DOL','cf'
+create 'trip_data_group_by_LOC_PminusD','cf'
+create 'trip_data_group_by_PUL','cf'
+```
+
+<img src="taxi.assets/2020-11-29 16-59-22 的屏幕截图.png" alt="2020-11-29 16-59-22 的屏幕截图" style="zoom:50%;" />
+
+```bash
+./hbase org.apache.hadoop.hbase.mapreduce.ImportTsv -Dimporttsv.separator=, -Dimporttsv.columns="HBASE_ROW_KEY,cf:trip_count,cf:passenger_count,cf:fare_amount,cf:tip_amount,cf:total_amount,cf:avg_duration" daily_taxi_trips /result/daily_taxi_trips.csv
+```
+
+scan 'daily_taxi_trips'
+
+![2020-11-29 17-12-27 的屏幕截图](taxi.assets/2020-11-29 17-12-27 的屏幕截图.png)
+
+```bash
+./hbase org.apache.hadoop.hbase.mapreduce.ImportTsv -Dimporttsv.separator=, -Dimporttsv.columns="HBASE_ROW_KEY,cf:trip_count,cf:passenger_count,cf:fare_amount,cf:tip_amount,cf:total_amount,cf:avg_duration" one_day_hourly_taxi_trips /result/one_day_hourly_taxi_trips.csv
+```
+
+scan 'one_day_hourly_taxi_trips'
+
+![2020-11-29 17-11-21 的屏幕截图](taxi.assets/2020-11-29 17-11-21 的屏幕截图.png)
+
+```bash
+./hbase org.apache.hadoop.hbase.mapreduce.ImportTsv -Dimporttsv.separator=, -Dimporttsv.columns="HBASE_ROW_KEY,cf:Ptrip_count,cf:Ppassenger_count,cf:Pfare_amount,cf:Ptip_amount,cf:Ptotal_amount,cf:Dtrip_count,cf:Dpassenger_count,cf:Dfare_amount,cf:Dtip_amount,cf:Dtotal_amount,cf:Mtrip_count,cf:Mpassenger_count,cf:Mfare_amount,cf:Mtip_amount,cf:Mtotal_amount" trip_data_group_by_LOC_PminusD /result/trip_data_group_by_LOC_PminusD.csv
+```
+
+scan 'trip_data_group_by_LOC_PminusD'
+
+![2020-11-29 17-08-19 的屏幕截图](taxi.assets/2020-11-29 17-08-19 的屏幕截图.png)
