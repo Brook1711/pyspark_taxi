@@ -137,6 +137,15 @@ plt.ylabel("avg_duration")
 plt.plot(daily_taxi_trips_drop_pandas["drop_date"],daily_taxi_trips_drop_pandas["avg_duration"])
 plt.savefig("./plot/avg_duration_six_month_drop.png")
 
+one_week_data = daily_taxi_trips.filter((daily_taxi_trips["pick_date"] >= '2020-02-03') & (daily_taxi_trips["pick_date"] <= '2020-02-09'))
+one_week_data_pandas = one_week_data.toPandas()
+plt.cla()
+plt.figure(10)
+plt.xlabel("date")
+plt.ylabel("passenger_count")
+plt.plot(one_week_data["pick_date"],one_week_data["passenger_count"])
+plt.savefig("./plot/one_week_passenger_count.png")
+
 one_day_hourly_taxi_trips = hourly_taxi_trips.groupBy("pick_hour").agg(
     f.sum(hourly_taxi_trips["trip_count"]).alias("trip_count"),
     f.sum(hourly_taxi_trips["passenger_count"]).alias("passenger_count"),
@@ -232,11 +241,20 @@ fig, ax = plt.subplots(1, 1, figsize=(40,40))
 world_P.plot(column= 'passenger_count', ax=ax, legend=True)
 plt.savefig("./plot/map_passengaer_count_pick.png")
 
+plt.figure(20)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_P.plot(column= 'tip_amount', ax=ax, legend=True)
+plt.savefig("./plot/map_tip_amount_pick.png")
+
 plt.figure(3)
 fig, ax = plt.subplots(1, 1, figsize=(40,40))
 world_D.plot(column= 'passenger_count', ax=ax, legend=True)
 plt.savefig("./plot/map_passengaer_count_drop.png")
 
+plt.figure(30)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_D.plot(column= 'tip_amount', ax=ax, legend=True)
+plt.savefig("./plot/map_tip_amount_drop.png")
 
 trip_data_group_by_PUL = trip_data_group_by_PUL.selectExpr("LocationID as LocationID", "trip_count as Ptrip_count", "passenger_count as Ppassenger_count", "fare_amount as Pfare_amount", "tip_amount as Ptip_amount", "total_amount as Ptotal_amount")
 trip_data_group_by_DOL = trip_data_group_by_DOL.selectExpr("LocationID as LocationID", "trip_count as Dtrip_count", "passenger_count as Dpassenger_count", "fare_amount as Dfare_amount", "tip_amount as Dtip_amount", "total_amount as Dtotal_amount")

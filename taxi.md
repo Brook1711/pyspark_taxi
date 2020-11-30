@@ -1,5 +1,3 @@
-
-
 # 实验报告
 
 ## 一、搭建环境
@@ -230,7 +228,7 @@ trip_data.printSchema()
 
 ![image-20201129065210792](taxi.assets/image-20201129065210792.png)
 
-将数据按照日期小时分类重整：
+#### 将数据按照日期小时分类重整：
 
 ```python
 extended_trips = trip_data \
@@ -264,7 +262,7 @@ hourly_taxi_trips_drop = extended_trips \
 
 ```
 
-按照日期分类重整，并且按照日期排序
+#### 按照日期分类重整，并且按照日期排序
 
 ```python
 daily_taxi_trips = hourly_taxi_trips.groupBy("pick_date").agg(
@@ -289,7 +287,7 @@ daily_taxi_trips_drop = hourly_taxi_trips_drop.groupBy("drop_date").agg(
 daily_taxi_trips_drop = daily_taxi_trips_drop.sort("drop_date")
 ```
 
-画出乘客量随着日期的变化趋势：
+#### 画出乘客量随着日期的变化趋势：
 
 ```python
 daily_taxi_trips_pandas = daily_taxi_trips.toPandas()
@@ -300,9 +298,26 @@ plt.plot(daily_taxi_trips_pandas["pick_date"],daily_taxi_trips_pandas["passenger
 plt.savefig("./plot/distribution_six_month_pick.png")
 ```
 
+
+
 ![distribution_six_month_pick](taxi.assets/distribution_six_month_pick.png)
 
-画出旅程平均用时随日期变化趋势
+#### 画出一个小星期内的分布：（2020-2-3~2020-2-9）
+
+```python
+one_week_data = daily_taxi_trips.filter((daily_taxi_trips["pick_date"] >= '2020-02-03') & (daily_taxi_trips["pick_date"] <= '2020-02-09'))
+one_week_data_pandas = one_week_data.toPandas()
+plt.cla()
+plt.figure(10)
+plt.xlabel("date")
+plt.ylabel("passenger_count")
+plt.plot(one_week_data_pandas["pick_date"],one_week_data_pandas["passenger_count"])
+plt.savefig("./plot/one_week_passenger_count.png")
+```
+
+![one_week_passenger_count](taxi.assets/one_week_passenger_count.png)
+
+#### 画出旅程平均用时随日期变化趋势
 
 ```python
 plt.cla()
@@ -316,7 +331,7 @@ plt.savefig("./plot/avg_duration_six_month_pick.png")
 
 ![avg_duration_six_month_pick](taxi.assets/avg_duration_six_month_pick.png)
 
-按照一天二十四小时对数据分类整合、排序：
+#### 按照一天二十四小时对数据分类整合、排序：
 
 ```python
 one_day_hourly_taxi_trips = hourly_taxi_trips.groupBy("pick_hour").agg(
@@ -331,7 +346,7 @@ one_day_hourly_taxi_trips = one_day_hourly_taxi_trips.sort("pick_hour")
 one_day_hourly_taxi_trips_pandas = one_day_hourly_taxi_trips.toPandas()
 ```
 
-画出一天之内乘客量分布：
+#### 画出一天之内乘客量分布：
 
 ```python
 plt.cla()
@@ -344,7 +359,7 @@ plt.savefig("./plot/distribution_in_one_day_pick.png")
 
 ![distribution_in_one_day_pick](taxi.assets/distribution_in_one_day_pick.png)
 
-画出一天之内乘车时间分布：
+#### 画出一天之内乘车时间分布：
 
 ```python
 plt.cla()
@@ -357,7 +372,7 @@ plt.savefig("./plot/avg_duration_in_one_day_pick.png")
 
 ![avg_duration_in_one_day_pick](taxi.assets/avg_duration_in_one_day_pick.png)
 
-分析地点分布：按照地址ID排序：
+#### 分析地点分布：按照地址ID排序：
 
 ```python
 # 按照接人的id排序
@@ -387,7 +402,7 @@ trip_data_group_by_DOL = trip_data_group_by_DOL.selectExpr("DOLocationID as Loca
 
 ```
 
-看接人的地点分布：
+#### 看接人的地点分布：
 
 ```python
 
@@ -403,7 +418,7 @@ plt.savefig("./plot/map_passengaer_count_pick.png")
 
 ![map_passengaer_count_pick](taxi.assets/map_passengaer_count_pick.png)
 
-看放人的地点分布：
+#### 看放人的地点分布：
 
 ```
 plt.figure(3)
@@ -414,7 +429,7 @@ plt.savefig("./plot/map_passengaer_count_drop.png")
 
 ![map_passengaer_count_drop](taxi.assets/map_passengaer_count_drop.png)
 
-接人的减去放人的：
+#### 接人的减去放人的：
 
 ```python
 trip_data_group_by_PUL = trip_data_group_by_PUL.selectExpr("LocationID as LocationID", "trip_count as Ptrip_count", "passenger_count as Ppassenger_count", "fare_amount as Pfare_amount", "tip_amount as Ptip_amount", "total_amount as Ptotal_amount")
@@ -446,9 +461,35 @@ plt.savefig("./plot/map_passengaer_count_pick_minus_drop.png")
 | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | ![map_passengaer_count_pick_minus_drop_daytime6_9](taxi.assets/map_passengaer_count_pick_minus_drop_daytime6_9.png) | ![map_passengaer_count_pick_minus_drop_nighttime15_18](taxi.assets/map_passengaer_count_pick_minus_drop_nighttime15_18.png) |
 
+#### 看小费分布（pick）
+
+```python
+plt.figure(20)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_P.plot(column= 'tip_amount', ax=ax, legend=True)
+plt.savefig("./plot/map_tip_amount_pick.png")
+```
+
+![map_tip_amount_pick](taxi.assets/map_tip_amount_pick.png)
+
+#### 看小费分布（drop）
+
+```python
+plt.figure(30)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_D.plot(column= 'tip_amount', ax=ax, legend=True)
+plt.savefig("./plot/map_tip_amount_drop.png")
+```
+
+![map_tip_amount_drop](taxi.assets/map_tip_amount_drop.png)
+
+
+
 ![image-20201129073527713](taxi.assets/image-20201129073527713.png)
 
 ![image-20201129073612781](taxi.assets/image-20201129073612781.png)
+
+#### google earth
 
 ### 2.4 保存数据到hbase
 
