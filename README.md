@@ -1,153 +1,627 @@
-# Spark_practice
- big data practice use spark 1.6.0
+## 数据集描述
+### 数据集名称：
+['TLC Trip Records'](https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
+### 数据集内容：
+该数据集为纽约市出租车载客情况，包含**用户上车时间、用户下车时间、用户上车下车区域（将纽约市分成264个小块并进行编码）、乘客人数、支付方式等**，一个月更新一次，现在更新到2020年6月。数据集格式为：**.csv**文件
 
-部分参考资料：[图灵程序设计丛书].Spark高级数据分析.第2版（主目录下）
 
-https://github.com/jwills/geojso
+| 数据域                | 描述                                                         |
+| --------------------- | ------------------------------------------------------------ |
+| VendorID              | 提供数据支持业务的公司：1= Creative Mobile Technologies, LLC; 2= VeriFone Inc. lpep |
+| lpep_pickup_datetime  | 上车时间                                                     |
+| lpep_dropoff_datetime | 下车时间                                                     |
+| Passenger_count       | 乘客人数                                                     |
+| Trip_distance         | 路程（单位为英里）                                           |
+| PULocationID          | 乘客上车地区编号                                             |
+| DOLocationID          | 乘客下车地区编号                                             |
+| RateCodeID            | 电脑自动生成分类：1 =标准 2 =肯尼迪国际机场 3 =纽瓦克 4 =拿骚或威彻斯特 5 =谈判票价 6 =团体游 |
+| Store_and_fwd_flag    | 该标志指示在将记录发送到供应商（也称为“存储转发”）之前，行程记录是否已保存在车辆内存中，因为车辆没有与服务器的连接。Y =存放和前进旅行N =不是存放和前进旅行 |
+| Payment_type          | 表示旅客如何支付旅程的数字代码。 1 =信用卡2 =现金3 =不收费4 =争议5 =未知6 =无效旅行 |
+| Fare_amount           | 计价器计算的时间和距离票价(每一米费用)。                     |
+| Extra                 | 杂项附加费。 目前，这仅包括$ 0.50和$ 1高峰时间和隔夜费用。   |
+| MTA_tax               | 根据使用的计量费率自动触发的$ 0.50 MTA税(纽约市政府收费项目，一般为0.5刀)。 |
+| Improvement_surcharge | 改良附加费（纽约市政府收费项目，一般为0.3刀）                |
+| Tip_amount            | 小费总额                                                     |
+| Tolls_amount          | 旅途中支付的所有通行费总额（服务费和道路通行费等）。         |
+| Total_amount          | 总收费，不包含现金小费                                       |
+| Trip_type             | 用户出行类别，1=街边打车；2=软件调度                         |
+### 数据集选取
+该数据集有四种，yellow、green、FHV、HVF。分别表示不同机构的统计结果，这里由于大小限制选取**green**数据集。
+时间选取为2019年1~6月和2020年1~6月，重点在于分析疫情对于该行业的影响。
+## 分析目的
+对比2019年和2020年第一季度的出租车业务变化情况，对其中各项指标进行分析，比如乘车总频次、乘车区域、乘车人数等指标进行分析，并分析同一天中用户业务集中时间段。
+1. 同比对比2020年2019年纽约市出租车业务下滑情况，分析疫情对纽约市出租车业务影响
+2. 分析四个行政区一天内出租车业务“时间-业务密度”分布情况的不同
+## 分析思路
+### 1、covid-19 影响
+选取新闻上报道纽约市疫情最严重的几天并寻找2019年同几天的业务分布不同，分析计算纽约市四个行政区出租车业务下降比例的不同，并重点观察同车乘客人数变化。最后影射出四个行政区的行政管理方式、民众反应差别，以及出租车业务变化趋势。
+### 2、一天内“时间-业务密度”分布情况
+出租车业务不可能一天都是均匀分布的，会有早高峰、午高峰等等，通过画出“时间-业务密度”概率密度分布——CDPF图即可直观观察到出租车业务相对时间分布。
+同时由于纽约市四个行政区贫富差距、居民生活水平以及生活方式都有不同情况，所以四个行政区的概率密度分布——CDPF图一定有所不同，通过分析同一季度下的分布不同，同样影射不同社区之间的社会差异。
 
-## Basic shell command
+## 注意：
 
-创建HDFS上的文件目录
+2019年以后TLC就不再提供经纬度地址
 
-`hadoop fs -mkdir linkage`
+![image-20201130145435237](taxi.assets/image-20201130145435237.png)
 
-将本地文件上传至HDFS的目录下
 
-`hadoop fs -put block_*.csv linkage`
 
-在Hadoop集群上部署spark
 
-`spark-shell --master yarn --deploy-mode client`
 
-在本地计算机上启动本地集群
+# 实验报告
 
-`spark-shell --master local[*]`
+## 一、搭建环境
 
-等效于：
+### 1.1 环境介绍
 
-`spark-shell`
+系统平台：Windows10 + ubuntu 20.04 LTS
 
-http://DESKTOP-*****:4040
+java版本：jdk1.8.0_271
 
-`:help`
+python版本：3.7.9
 
-`:h?`
+spark版本：2.4.7
 
-`:historay`
+pyspark版本：2.4.7
 
-## SparkContext
+hadoop版本：2.7.1
 
-SparkContext 是一个spark自带对象
+hbase版本：1.4.13
 
-查看该对象的所有方法：
+## 二、实验步骤
 
-`sc.[\t]`
+### 2.1 上传文件到hadoop
 
-([\t])是tab键
+第一步，安装并启动hadoop服务（win10）：
 
-### 创建RDD
+安装：（默认已安装java）
 
-RDD 以分区（partition）的形式分布在集群中的多个机器上，每个分区代表了数据集的一个子集。分区定义了Spark 中数据的并行单位。Spark 框架并行处理多个分区，一个分区内的数据对象则是顺序处理。创建RDD 最简单的方法是在本地对象集合上调用SparkContext 的parallelize 方法。
+[下载](https://archive.apache.org/dist/hadoop/common/hadoop-2.7.1/)hadoop2.7.1并解压到C:\demo\hadoop-2.7.1
 
-`val rdd = sc.parallelize(Array(1, 2, 2, 4), 4)`
+创建环境变量HADOOP_HOME
 
-第一个参数代表待并行化的对象集合，第二个参数代表分区的个数。
+![image-20201129062516244](taxi.assets/image-20201129062516244.png)
 
-要在分布式文件系统（比如HDFS）上的文件或目录上创建RDD，可以给textFile 方法传入文件或目录的名称：
+更改配置文件：
 
-`val rdd2 = sc.textFile("hdfs:///some/path.txt")`
+`hdfs-site.xml`
 
-我们的记录关联数据存储在一个文本文件中，文件中每行代表一个样本。我们用SparkContext 的textFile 方法来得到RDD 形式的数据引用：
+```xml
+<configuration>
+    <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+    </property>
+    <property>
+       <name>dfs.namenode.name.dir</name>
+       <value>/distributed/hadoop/data/namenode</value>
+    </property>
+    <property>
+       <name>dfs.datanode.data.dir</name>
+       <value>/distributed/hadoop/data/datanode</value>
+    </property>
+	<property>
+		<name>dfs.datanode.max.transfer.threads</name>
+		<value>4096</value>
+	</property>
+</configuration>
+```
 
-#### val、var
+`yarn-site.xml`
 
-只要在Scala 中定义新变量，就必须在变量名称前加上val 或var。名称前带val 的变量是不可变变量。一旦给不可变变量赋完初值，就不能改变它，让它指向另一个值。而以var 开头的变量则可以改变其指向，让它指向同一类型的不同对象。
+```xml
+<configuration>
+    <property>
+        <name>dfs.replication</name>
+        <value>1</value>
+    </property>
+    <property>
+       <name>dfs.namenode.name.dir</name>
+       <value>/distributed/hadoop/data/namenode</value>
+    </property>
+    <property>
+       <name>dfs.datanode.data.dir</name>
+       <value>/distributed/hadoop/data/datanode</value>
+    </property>
+	<property>
+		<name>dfs.datanode.max.transfer.threads</name>
+		<value>4096</value>
+	</property>
+</configuration>
+```
 
+所有的.cmd文件均更改编码格式
 
+![image-20201129062826913](taxi.assets/image-20201129062826913.png)
 
-## 纽约市出租车分析
 
-### 数据描述：
 
-数据来源：
+启动hadoop，（`C:\demo\hadoop-2.7.1\sbin` 目录下）运行：
 
-https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page
+```
+PS C:\demo\hadoop-2.7.1\sbin> ./start-all
+```
 
-共有四种出租车，这里选取数据为黄色出租车数据，
+输入网址http://127.0.0.1:50070/来访问管理页面
 
-数据集为**2020年1月到2020年6月**六个csv文件
+![image-20201129063126435](taxi.assets/image-20201129063126435.png)
 
-数据集在`./data`文件夹下
+点击‘utilities/browse the file system’来访问文件系统
 
-数据集说明在`./data_dic`文件夹下
+![image-20201129063252343](taxi.assets/image-20201129063252343.png)
 
+![image-20201129063303008](taxi.assets/image-20201129063303008.png)
 
+使用命令：
 
-<img src="README.assets/image-20201119155925103.png" alt="image-20201119155925103" style="zoom:50%;" />
+```
+hadoop fs -put C:/demo/Gitee/Spark_practice/taxi_green /test
+```
 
-### 地理数据API：Esri Geometry API
+将csv文件放入hadoop的/test 文件夹中
 
-我们有出租车乘客上车点和下车点的经纬度 数据，以及表示纽约各个区边界的矢量数据，这些矢量数据用 GeoJSON 格式存储。因我们需要一个可以解析 GeoJSON 数据并能处理其空间关系的工具。具体来说，就是该工 具可以判断某经纬度所代表的点是否在某个区边界所组成的多边形中。
+![image-20201129063751472](taxi.assets/image-20201129063751472.png)
 
-不幸的是，目前没有一个开源的库正好能满足我们的要求。有一个 GeoJSON 的解析工具 可以把 GeoJSON 转换成 Java 对象，但没有相关的地理空间工具能对转换得到的对象进行 空间关系分析。有一个名叫 GeoTools 的项目，但它的组件和依赖关系实在太多，我们不 希望在 Spark shell 中选用有太多复杂依赖的工具。最后有一个 Java 版本的 Esri Geometry API，它的依赖很少而且可以分析空间关系，但它只能解析 GeoJSON 标准的一个子集，因此我们必须对下载的 GeoJSON 数据做一些预处理。
+在webUI上也能查看
 
-https://github.com/jwills/geojson
+![image-20201129063816890](taxi.assets/image-20201129063816890.png)
 
-对该项目来讲，我们有表示出租车乘客下车地点（经度和纬度）的几何图形，也有表示纽约市行政区域范围的几何图形。我们想知道它们的包含关系：一个给定的位置点是否在曼哈顿区对应的多边形里边？
+### 2.2 创建虚拟环境安装并运行pyspark
 
-Esri  API有一个助手类GeometryEngine，它提供了执行所有空间关系操作的静态方法，其中就包括contains操作。contains方法有3个参数：两个Geometry实例参数和一个SpatialReference实例参数。SpatialReference实例参数表示用于地理空间计算的坐标系统。为了提高精度，我们需要分析地球球体上的点映射到二维坐标系统后相对于坐标平面的空间关系。地理空间工程师有一套标准的通用标识符（well-known  identifier，称为WKID），是一套最常用的坐标系统。这里我们将采用WKID  4326，它也是GPS所用的坐标系统。
+创建名为pyspark的虚拟环境，并在环境中安装pyspark2.4.7和geopandas
 
-作为Scala开发人员，我们总是想方设法减少在Spark  shell中进行交互式数据分析时输入的代码量。在Spark  shell中可不像Eclipse和IntelliJ那样能自动为我们补全长方法名，也不能像这些开发环境一样提供语法糖来辅助看懂某种操作。根据**NScalaTime**库（它定义了包装类**RichDateTime**和**RichDuration**）的命名规范，我们将定义自己的***RichGeometry***类，它扩展了Esri Geometry对象并提供一些有用的辅助方法，代码如下：
+创建环境：
 
-![image-20201119214945899](README.assets/image-20201119214945899.png)
+```bash
+conda create -n pyspark python=3.7
+```
 
-我们将为Geometry定义一个伴生对象，它可以将Geometry类实例隐式转换为RichGeometry类型：
+运行虚拟环境：
 
-![image-20201119215126547](README.assets/image-20201119215126547.png)
+![image-20201129064152317](taxi.assets/image-20201129064152317.png)
 
-记住，要想这种转换起作用，需要在Scala环境中导入这个隐式函数定义，代码如下：
+安装pyspark：注意pyspark2只支持python3.7
 
-![image-20201119215140475](README.assets/image-20201119215140475.png)
+```bash
+pip install pyspark==2.4.7
+```
 
-### GeoJSON简介
+安装geopandas：
 
-表示纽约市行政区域范围的数据是GeoJSON格式的，GeoJSON中核心的对象称为特征，特征由一个geometry实例和一组称为属性（property）的键-值对组成。其中geometry可以是点、线或多边形。一组特征称为FeatureCollection。现在我们把纽约市行政区地图的GeoJSON数据下载下来，然后看看它的结构。
+由于安装依赖有问题，手动[下载](https://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal)whl：
 
- https://nycdatastables.s3.amazonaws.com/2013-08-19T18:15:35.172Z/nyc-borough-boundaries-polygon.geojson 
+​	![image-20201129064504085](taxi.assets/image-20201129064504085.png)
 
-可以用Esri  Geometry  API解析每个特征内部的几何JSON，*但这个API不能帮我们解析id或properties字段*，properties字段可能是任何JSON对象。为了解析这些对象，要用到Scala的JSON库，这样的库有很多。
+```bash
+pip install *.whl
+pip install geopandas
+```
 
-这里正好可以用Spray，它是一个用Scala构建Web服务的开源工具包。通过隐式调用spray-json的toJson方法，可以将任何Scala对象转换成相应的JsValue。也可以通过调用它的parseJson方法将任何JSON格式的字符串转换成一个中间类型，然后在中间类型上调用convertTo[T]将其转换成一个Scala类型T。Spray内置了对常用Scala原子类型、元组和集合类型的转换实现，同时也提供了一个格式化工具，该工具可以定义自定义类型（比如RichGeometry）与JSON之间相互转换的规则。
+在终端输入pyspark进入命令行页面
 
-首先为表示GeoJSON的特征将建立一个case类。根据规范，特征是一个JSON对象，它必须有一个geometry字段和一个properties字段。geometry代表GeoJSON的几何类型，properties则是一个JSON对象，可以包含任意个数和类型的键-值对。特征也可以有一个可选字段id，表示任何JSON标识符。我们的case类的Feature将为每个JSON字段定义相应的Scala字段，同时它还提供了在属性map中查找值的辅助方法：
+![image-20201129064700206](taxi.assets/image-20201129064700206.png)
 
-![image-20201119222149523](README.assets/image-20201119222149523.png)
+### 2.3 导入并处理数据
 
-我们使用RichGeometry类实例来表示Feature中的geometry字段。我们通过Esri Geometry API的GeoJSON图形解析函数创建RichGeometry类实例。
+加载依赖包：
 
-还需要为GeoJson FeatureCollection定义一个case类。为了使FeatureCollection类更易于使用，实现apply和length这两个抽象方法，就能让它扩展IndexedSeq[Feature]这个trait。这样就能直接在FeatureCollection实例上调用标准的Scala  Collections  API的方法，比如map、filter和sortBy等，而不用访问底层的Array[Feature]。
+```python
+from pyspark.sql import SparkSession
+import pyspark.sql.functions as f
+from pyspark.sql.types import *
+import pandas as pd 
+import geopandas as gpd
+import contextily as ctx
+#%matplotlib inline
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
-![image-20201119222208530](README.assets/image-20201119222208530.png)
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
+```
+
+创建spark session
+
+```python
+appName = "Python Example - PySpark Read CSV"
+master = 'local'
+
+# Create Spark session
+spark = SparkSession.builder \
+    .master(master) \
+    .appName(appName) \
+    .getOrCreate()
+```
+
+建立导入数据格式
+
+```python
+trip_schema = StructType([
+    StructField('VendorID', StringType()),
+    StructField('lpep_pickup_datetime', TimestampType()),
+    StructField('lpep_dropoff_datetime', TimestampType()),
+    StructField('store_and_fwd_flag', StringType()),
+    StructField('RatecodeID', IntegerType()),
+    StructField('PULocationID', IntegerType()),
+    StructField('DOLocationID', IntegerType()),
+    StructField('passenger_count', IntegerType()),
+    StructField('trip_distance', DoubleType()),
+    StructField('fare_amount', DoubleType()),
+    StructField('extra', DoubleType()),
+
+    StructField('mta_tax', DoubleType()),
+    StructField('tip_amount', DoubleType()),
+    StructField('tolls_amount', DoubleType()),
+    StructField('ehail_fee', DoubleType()),
+    StructField('improvement_surcharge', DoubleType()),
+    StructField('total_amount', DoubleType()),
+    StructField('payment_type', IntegerType()),
+    StructField('trip_type', IntegerType()),
+    StructField('congestion_surcharge', DoubleType()),
+    ])
+
+```
+
+按照数据格式获取数据
+
+```python
+trip_data = spark.read \
+    .option("header", True) \
+    .schema(trip_schema) \
+    .csv("hdfs://127.0.0.1:9000/test/taxi_green/*.csv")
+trip_data.printSchema()
+```
+
+读取数据成功：
+
+![image-20201129065136725](taxi.assets/image-20201129065136725.png)
+
+![image-20201129065210792](taxi.assets/image-20201129065210792.png)
+
+#### 将数据按照日期小时分类重整：
+
+```python
+extended_trips = trip_data \
+    .withColumn("pick_date", f.to_date(trip_data["lpep_pickup_datetime"])) \
+    .withColumn("pick_hour", f.hour(trip_data["lpep_pickup_datetime"]))\
+    .withColumn("drop_date", f.to_date(trip_data["lpep_dropoff_datetime"])) \
+    .withColumn("drop_hour", f.hour(trip_data["lpep_dropoff_datetime"])) \
+    .withColumn("duration", f.unix_timestamp(trip_data["lpep_dropoff_datetime"]) - f.unix_timestamp(trip_data["lpep_pickup_datetime"]))
+extended_trips = extended_trips.filter((trip_data["lpep_pickup_datetime"] > '2020-01-01 00:00:00'))
+
+# 按照接上日期小时重整
+hourly_taxi_trips = extended_trips \
+    .groupBy("pick_date", "pick_hour").agg(
+        f.count(extended_trips["fare_amount"]).alias("trip_count"),
+        f.sum(extended_trips["passenger_count"]).alias("passenger_count"),
+        f.sum(extended_trips["fare_amount"]).alias("fare_amount"),
+        f.sum(extended_trips["tip_amount"]).alias("tip_amount"),
+        f.sum(extended_trips["total_amount"]).alias("total_amount"),
+        f.avg(extended_trips["duration"]).alias("avg_duration")
+    )
+#按照方向下日期小时重整
+hourly_taxi_trips_drop = extended_trips \
+    .groupBy("drop_date", "drop_hour").agg(
+        f.count(extended_trips["fare_amount"]).alias("trip_count"),
+        f.sum(extended_trips["passenger_count"]).alias("passenger_count"),
+        f.sum(extended_trips["fare_amount"]).alias("fare_amount"),
+        f.sum(extended_trips["tip_amount"]).alias("tip_amount"),
+        f.sum(extended_trips["total_amount"]).alias("total_amount"),
+        f.avg(extended_trips["duration"]).alias("avg_duration")
+    )
+
+```
+
+#### 按照日期分类重整，并且按照日期排序
+
+```python
+daily_taxi_trips = hourly_taxi_trips.groupBy("pick_date").agg(
+    f.sum(hourly_taxi_trips["trip_count"]).alias("trip_count"),
+    f.sum(hourly_taxi_trips["passenger_count"]).alias("passenger_count"),
+    f.sum(hourly_taxi_trips["fare_amount"]).alias("fare_amount"),
+    f.sum(hourly_taxi_trips["tip_amount"]).alias("tip_amount"),
+    f.sum(hourly_taxi_trips["total_amount"]).alias("total_amount"),
+    f.avg(hourly_taxi_trips["avg_duration"]).alias("avg_duration")
+)
+daily_taxi_trips = daily_taxi_trips.sort("pick_date")
+# daily_taxi_trips.write.mode("overwrite").parquet("./values/daily_taxi_trips")
+
+daily_taxi_trips_drop = hourly_taxi_trips_drop.groupBy("drop_date").agg(
+    f.sum(hourly_taxi_trips_drop["trip_count"]).alias("trip_count"),
+    f.sum(hourly_taxi_trips_drop["passenger_count"]).alias("passenger_count"),
+    f.sum(hourly_taxi_trips_drop["fare_amount"]).alias("fare_amount"),
+    f.sum(hourly_taxi_trips_drop["tip_amount"]).alias("tip_amount"),
+    f.sum(hourly_taxi_trips_drop["total_amount"]).alias("total_amount"),
+    f.avg(hourly_taxi_trips_drop["avg_duration"]).alias("avg_duration")
+)
+daily_taxi_trips_drop = daily_taxi_trips_drop.sort("drop_date")
+```
+
+#### 画出乘客量随着日期的变化趋势：
+
+```python
+daily_taxi_trips_pandas = daily_taxi_trips.toPandas()
+plt.figure(0)
+plt.xlabel("date")
+plt.ylabel("passengaer amount")
+plt.plot(daily_taxi_trips_pandas["pick_date"],daily_taxi_trips_pandas["passenger_count"])
+plt.savefig("./plot/distribution_six_month_pick.png")
+```
+
+
+
+![distribution_six_month_pick](taxi.assets/distribution_six_month_pick.png)
+
+#### 画出一个小星期内的分布：（2020-2-3~2020-2-9）
+
+```python
+one_week_data = daily_taxi_trips.filter((daily_taxi_trips["pick_date"] >= '2020-02-03') & (daily_taxi_trips["pick_date"] <= '2020-02-09'))
+one_week_data_pandas = one_week_data.toPandas()
+plt.cla()
+plt.figure(10)
+plt.xlabel("date")
+plt.ylabel("passenger_count")
+plt.plot(one_week_data_pandas["pick_date"],one_week_data_pandas["passenger_count"])
+plt.savefig("./plot/one_week_passenger_count.png")
+```
+
+![one_week_passenger_count](taxi.assets/one_week_passenger_count.png)
+
+#### 画出旅程平均用时随日期变化趋势
+
+```python
+plt.cla()
+plt.figure(0)
+plt.xlabel("date")
+plt.ylabel("avg_duration")
+plt.plot(daily_taxi_trips_pandas["pick_date"],daily_taxi_trips_pandas["avg_duration"])
+plt.savefig("./plot/avg_duration_six_month_pick.png")
+
+```
+
+![avg_duration_six_month_pick](taxi.assets/avg_duration_six_month_pick.png)
+
+#### 按照一天二十四小时对数据分类整合、排序：
+
+```python
+one_day_hourly_taxi_trips = hourly_taxi_trips.groupBy("pick_hour").agg(
+    f.sum(hourly_taxi_trips["trip_count"]).alias("trip_count"),
+    f.sum(hourly_taxi_trips["passenger_count"]).alias("passenger_count"),
+    f.sum(hourly_taxi_trips["fare_amount"]).alias("fare_amount"),
+    f.sum(hourly_taxi_trips["tip_amount"]).alias("tip_amount"),
+    f.sum(hourly_taxi_trips["total_amount"]).alias("total_amount"),
+    f.avg(hourly_taxi_trips["avg_duration"]).alias("avg_duration")
+)
+one_day_hourly_taxi_trips = one_day_hourly_taxi_trips.sort("pick_hour")
+one_day_hourly_taxi_trips_pandas = one_day_hourly_taxi_trips.toPandas()
+```
+
+#### 画出一天之内乘客量分布：
+
+```python
+plt.cla()
+plt.figure(1)
+plt.xlabel("hour")
+plt.ylabel("passengaer amount")
+plt.bar(one_day_hourly_taxi_trips_pandas["pick_hour"],one_day_hourly_taxi_trips_pandas["passenger_count"])
+plt.savefig("./plot/distribution_in_one_day_pick.png")
+```
+
+![distribution_in_one_day_pick](taxi.assets/distribution_in_one_day_pick.png)
+
+#### 画出一天之内乘车时间分布：
+
+```python
+plt.cla()
+plt.figure(1)
+plt.xlabel("hour")
+plt.ylabel("avg_duration")
+plt.bar(one_day_hourly_taxi_trips_pandas["pick_hour"],one_day_hourly_taxi_trips_pandas["avg_duration"])
+plt.savefig("./plot/avg_duration_in_one_day_pick.png")
+```
+
+![avg_duration_in_one_day_pick](taxi.assets/avg_duration_in_one_day_pick.png)
+
+#### 分析地点分布：按照地址ID排序：
+
+```python
+# 按照接人的id排序
+trip_data_group_by_PUL = extended_trips \
+    .groupBy("PULocationID").agg(
+        f.count(extended_trips["fare_amount"]).alias("trip_count"),
+        f.sum(extended_trips["passenger_count"]).alias("passenger_count"),
+        f.sum(extended_trips["fare_amount"]).alias("fare_amount"),
+        f.sum(extended_trips["tip_amount"]).alias("tip_amount"),
+        f.sum(extended_trips["total_amount"]).alias("total_amount"),
+        f.avg(extended_trips["duration"]).alias("avg_duration")
+    )
+
+trip_data_group_by_PUL = trip_data_group_by_PUL.selectExpr("PULocationID as LocationID", "trip_count as trip_count", "passenger_count as passenger_count", "fare_amount as fare_amount", "tip_amount as tip_amount", "total_amount as total_amount")
+
+# 按照放的ID排序
+trip_data_group_by_DOL = extended_trips \
+    .groupBy("DOLocationID").agg(
+        f.count(extended_trips["fare_amount"]).alias("trip_count"),
+        f.sum(extended_trips["passenger_count"]).alias("passenger_count"),
+        f.sum(extended_trips["fare_amount"]).alias("fare_amount"),
+        f.sum(extended_trips["tip_amount"]).alias("tip_amount"),
+        f.sum(extended_trips["total_amount"]).alias("total_amount"),
+        f.avg(extended_trips["duration"]).alias("avg_duration")
+    )
+trip_data_group_by_DOL = trip_data_group_by_DOL.selectExpr("DOLocationID as LocationID", "trip_count as trip_count", "passenger_count as passenger_count", "fare_amount as fare_amount", "tip_amount as tip_amount", "total_amount as total_amount")
 
-在定义表示GeoJSON数据的case类之后，还需要定义领域对象（RichGeometry、Feature和FeatureCollection）与相应的JsValue实例之间相互转换的格式。为此要创建Scala的单例对象，这些对象扩展了RootJsonFormat[T]  trait，这个trait定义了抽象方法read(jsv: JsValue): T和write(t: T): JsValue。对于RichGeometry类，我们可以将大部分的解析和格式化逻辑委派给Esri  Geometry  API，也就是GeometryEngine类的geometryToGeoJson和geometryFromGeoJson方法。但对我们定义的case类，我们需要自己编写格式化逻辑。下面是Feature这个case类的格式化代码，其中包含了一些为处理可选字段id的特殊逻辑：
+```
 
-![image-20201119222256602](README.assets/image-20201119222256602.png)
+#### 看接人的地点分布：
 
-FeatureJsonFormat对象中的implicit关键字是为了Spray库可以在JsValue实例上调用convertTo[Feature]时进行查找。可以在GitHub上找到GeoJSON库实现RootJsonFormat的其余源代码。
+```python
 
-### 纽约市出租车客运数据的预处理
+world = gpd.read_file('./map/taxi_zones/taxi_zones.shp')
+world_P = world.merge(trip_data_group_by_PUL.toPandas(), on = "LocationID", how = "outer")
+world_D = world.merge(trip_data_group_by_DOL.toPandas(), on = "LocationID", how = "outer")
 
-现在我们手头上有了GeoJSON和JodaTime库，该开始用Spark对纽约市出租车客运数据进行交互式分析了！先在HDFS上建立一个taxidata目录，并将载客数据复制到集群上：
+plt.figure(2)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_P.plot(column= 'passenger_count', ax=ax, legend=True)
+plt.savefig("./plot/map_passengaer_count_pick.png")
+```
 
-![image-20201120145732112](README.assets/image-20201120145732112.png)
+![map_passengaer_count_pick](taxi.assets/map_passengaer_count_pick.png)
 
-hadoop fs -mkdir taxidata_2020_01
+#### 看放人的地点分布：
 
-hadoop fs -put ./data/yellow_tripdata_2020-01.csv
+```
+plt.figure(3)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_D.plot(column= 'passenger_count', ax=ax, legend=True)
+plt.savefig("./plot/map_passengaer_count_drop.png")
+```
 
-启动spark-shell :
+![map_passengaer_count_drop](taxi.assets/map_passengaer_count_drop.png)
 
-![image-20201120145917938](README.assets/image-20201120145917938.png)
+#### 接人的减去放人的：
 
-spark-shell --jars ./dependence/ch08-geotime-2.0.0-jar-with-dependencies.jar
+```python
+trip_data_group_by_PUL = trip_data_group_by_PUL.selectExpr("LocationID as LocationID", "trip_count as Ptrip_count", "passenger_count as Ppassenger_count", "fare_amount as Pfare_amount", "tip_amount as Ptip_amount", "total_amount as Ptotal_amount")
+trip_data_group_by_DOL = trip_data_group_by_DOL.selectExpr("LocationID as LocationID", "trip_count as Dtrip_count", "passenger_count as Dpassenger_count", "fare_amount as Dfare_amount", "tip_amount as Dtip_amount", "total_amount as Dtotal_amount")
 
+trip_data_group_by_LOC_PminusD = trip_data_group_by_PUL.join(trip_data_group_by_DOL, on = 'LocationID', how="outer") 
+trip_data_group_by_LOC_PminusD = trip_data_group_by_LOC_PminusD\
+    .withColumn('Mtrip_count', trip_data_group_by_LOC_PminusD['Ptrip_count']-trip_data_group_by_LOC_PminusD['Dtrip_count'])\
+    .withColumn('Mpassenger_count', trip_data_group_by_LOC_PminusD['Ppassenger_count']-trip_data_group_by_LOC_PminusD['Dpassenger_count'])\
+    .withColumn('Mfare_amount', trip_data_group_by_LOC_PminusD['Pfare_amount']-trip_data_group_by_LOC_PminusD['Dfare_amount'])\
+    .withColumn('Mtip_amount', trip_data_group_by_LOC_PminusD['Ptip_amount']-trip_data_group_by_LOC_PminusD['Dtip_amount'])\
+    .withColumn('Mtotal_amount', trip_data_group_by_LOC_PminusD['Ptotal_amount']-trip_data_group_by_LOC_PminusD['Dtotal_amount'])
+
+plt.figure(4)
+fig, ax = plt.subplots(1, 1,figsize=(40,40))
+world_PMD = world.merge(trip_data_group_by_LOC_PminusD.toPandas(), on = "LocationID", how = "outer")
+world_PMD.plot(column= 'Mpassenger_count', ax=ax, legend=True, cmap='hot')
+# world_PMD.plot(column= 'Mpassenger_count', ax=ax, legend=True, cmap='OrRd', scheme='quantiles')
+plt.savefig("./plot/map_passengaer_count_pick_minus_drop.png")
+```
+
+![map_passengaer_count_pick_minus_drop](taxi.assets/map_passengaer_count_pick_minus_drop.png)
+
+
+
+
+
+| 上午6~9点：                                                  | 晚上3~6点                                                    |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![map_passengaer_count_pick_minus_drop_daytime6_9](taxi.assets/map_passengaer_count_pick_minus_drop_daytime6_9.png) | ![map_passengaer_count_pick_minus_drop_nighttime15_18](taxi.assets/map_passengaer_count_pick_minus_drop_nighttime15_18.png) |
+
+#### 看小费分布（pick）
+
+```python
+plt.figure(20)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_P.plot(column= 'tip_amount', ax=ax, legend=True)
+plt.savefig("./plot/map_tip_amount_pick.png")
+```
+
+![map_tip_amount_pick](taxi.assets/map_tip_amount_pick.png)
+
+#### 看小费分布（drop）
+
+```python
+plt.figure(30)
+fig, ax = plt.subplots(1, 1, figsize=(40,40))
+world_D.plot(column= 'tip_amount', ax=ax, legend=True)
+plt.savefig("./plot/map_tip_amount_drop.png")
+```
+
+![map_tip_amount_drop](taxi.assets/map_tip_amount_drop.png)
+
+
+
+![image-20201129073527713](taxi.assets/image-20201129073527713.png)
+
+![image-20201129073612781](taxi.assets/image-20201129073612781.png)
+
+#### google earth
+
+![image-20201130122104801](taxi.assets/image-20201130122104801.png)
+
+![image-20201130122354862](taxi.assets/image-20201130122354862.png)
+
+![image-20201130122503322](taxi.assets/image-20201130122503322.png)
+
+### 2.4 保存数据到hbase
+
+要保存的数据有：
+
+trip_data_group_by_PUL
+
+trip_data_group_by_DOL
+
+trip_data_group_by_LOC_PminusD
+
+daily_taxi_trips
+
+one_day_hourly_taxi_trips
+
+分别存为csv文件：
+
+![image-20201129153850300](taxi.assets/image-20201129153850300.png)
+
+```python
+trip_data_group_by_PUL.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/trip_data_group_by_PUL")
+trip_data_group_by_DOL.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/trip_data_group_by_DOL")
+trip_data_group_by_LOC_PminusD.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/trip_data_group_by_LOC_PminusD")
+daily_taxi_trips.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/daily_taxi_trips")
+one_day_hourly_taxi_trips.coalesce(1).write.format('com.databricks.spark.csv').options(header='true').save("C:/demo/pyspark_taxi/values/one_day_hourly_taxi_trips")
+```
+
+将这些文件存入ubuntu系统的hdfs中
+
+![2020-11-29 15-57-19 的屏幕截图](../../图片/2020-11-29 15-57-19 的屏幕截图.png)
+
+![2020-11-29 15-57-19 的屏幕截图](../../图片/2020-11-29 16-15-24 的屏幕截图.png)
+
+再从hdfs中导入hbase中
+
+首先新建容器'taxi',在/home/brook1711/hbase-1.4.13/bin目录下
+
+```shell
+./hbase shell
+```
+
+打开hbase shell
+
+利用create命令新建表
+
+```shell
+create 'daily_taxi_trips','cf'
+create 'one_day_hourly_taxi_trips','cf'
+create 'trip_data_group_by_DOL','cf'
+create 'trip_data_group_by_LOC_PminusD','cf'
+create 'trip_data_group_by_PUL','cf'
+```
+
+<img src="taxi.assets/2020-11-29 16-59-22 的屏幕截图.png" alt="2020-11-29 16-59-22 的屏幕截图" style="zoom:50%;" />
+
+```bash
+./hbase org.apache.hadoop.hbase.mapreduce.ImportTsv -Dimporttsv.separator=, -Dimporttsv.columns="HBASE_ROW_KEY,cf:trip_count,cf:passenger_count,cf:fare_amount,cf:tip_amount,cf:total_amount,cf:avg_duration" daily_taxi_trips /result/daily_taxi_trips.csv
+```
+
+scan 'daily_taxi_trips'
+
+![2020-11-29 17-12-27 的屏幕截图](taxi.assets/2020-11-29 17-12-27 的屏幕截图.png)
+
+```bash
+./hbase org.apache.hadoop.hbase.mapreduce.ImportTsv -Dimporttsv.separator=, -Dimporttsv.columns="HBASE_ROW_KEY,cf:trip_count,cf:passenger_count,cf:fare_amount,cf:tip_amount,cf:total_amount,cf:avg_duration" one_day_hourly_taxi_trips /result/one_day_hourly_taxi_trips.csv
+```
+
+scan 'one_day_hourly_taxi_trips'
+
+![2020-11-29 17-11-21 的屏幕截图](taxi.assets/2020-11-29 17-11-21 的屏幕截图.png)
+
+```bash
+./hbase org.apache.hadoop.hbase.mapreduce.ImportTsv -Dimporttsv.separator=, -Dimporttsv.columns="HBASE_ROW_KEY,cf:Ptrip_count,cf:Ppassenger_count,cf:Pfare_amount,cf:Ptip_amount,cf:Ptotal_amount,cf:Dtrip_count,cf:Dpassenger_count,cf:Dfare_amount,cf:Dtip_amount,cf:Dtotal_amount,cf:Mtrip_count,cf:Mpassenger_count,cf:Mfare_amount,cf:Mtip_amount,cf:Mtotal_amount" trip_data_group_by_LOC_PminusD /result/trip_data_group_by_LOC_PminusD.csv
+```
+
+scan 'trip_data_group_by_LOC_PminusD'
+
+![2020-11-29 17-08-19 的屏幕截图](taxi.assets/2020-11-29 17-08-19 的屏幕截图.png)
